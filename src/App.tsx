@@ -5,6 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/components/AuthProvider";
+import ProtectedRoute from "@/components/ProtectedRoute";
 import Landing from "./pages/Landing";
 import Login from "./pages/Login";
 import MasterDashboard from "./pages/MasterDashboard";
@@ -17,7 +18,21 @@ import ChurchesPage from "./pages/ChurchesPage";
 import AnalyticsPage from "./pages/AnalyticsPage";
 import NotFound from "./pages/NotFound";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: (failureCount, error: any) => {
+        // Não tentar novamente para erros de autenticação
+        if (error?.code === 'PGRST301' || error?.message?.includes('JWT')) {
+          return false;
+        }
+        return failureCount < 3;
+      },
+      refetchOnWindowFocus: false,
+      staleTime: 1000 * 60 * 5, // 5 minutes
+    },
+  },
+});
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -29,14 +44,51 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Landing />} />
             <Route path="/login" element={<Login />} />
-            <Route path="/master" element={<MasterDashboard />} />
-            <Route path="/master/churches" element={<ChurchesPage />} />
-            <Route path="/master/analytics" element={<AnalyticsPage />} />
-            <Route path="/admin" element={<ChurchDashboard />} />
-            <Route path="/admin/members" element={<MembersPage />} />
-            <Route path="/admin/finances" element={<FinancesPage />} />
-            <Route path="/admin/events" element={<EventsPage />} />
-            <Route path="/admin/groups" element={<GroupsPage />} />
+            
+            {/* Master Routes */}
+            <Route path="/master" element={
+              <ProtectedRoute requireMaster>
+                <MasterDashboard />
+              </ProtectedRoute>
+            } />
+            <Route path="/master/churches" element={
+              <ProtectedRoute requireMaster>
+                <ChurchesPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/master/analytics" element={
+              <ProtectedRoute requireMaster>
+                <AnalyticsPage />
+              </ProtectedRoute>
+            } />
+            
+            {/* Church Admin Routes */}
+            <Route path="/admin" element={
+              <ProtectedRoute>
+                <ChurchDashboard />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/members" element={
+              <ProtectedRoute>
+                <MembersPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/finances" element={
+              <ProtectedRoute>
+                <FinancesPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/events" element={
+              <ProtectedRoute>
+                <EventsPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/groups" element={
+              <ProtectedRoute>
+                <GroupsPage />
+              </ProtectedRoute>
+            } />
+            
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

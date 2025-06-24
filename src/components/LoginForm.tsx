@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -7,7 +7,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { useAuthContext } from '@/components/AuthProvider';
 import { useToast } from '@/hooks/useToast';
 import { useNavigate } from 'react-router-dom';
-import { useEffect } from 'react';
 
 const LoginForm = () => {
   const [email, setEmail] = useState('');
@@ -16,16 +15,21 @@ const LoginForm = () => {
   const [isSignUp, setIsSignUp] = useState(false);
   const [loading, setLoading] = useState(false);
   
-  const { signIn, signUp, signInWithGoogle, user } = useAuthContext();
+  const { signIn, signUp, signInWithGoogle, user, profile } = useAuthContext();
   const { toast } = useToast();
   const navigate = useNavigate();
 
   // Redirecionar se já estiver logado
   useEffect(() => {
-    if (user) {
-      navigate('/admin');
+    if (user && profile) {
+      // Verificar se é master user
+      if (profile.email === 'yuriadrskt@gmail.com') {
+        navigate('/master');
+      } else {
+        navigate('/admin');
+      }
     }
-  }, [user, navigate]);
+  }, [user, profile, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -38,8 +42,16 @@ const LoginForm = () => {
         if (result.data?.user && !result.error) {
           toast({
             title: "Cadastro realizado!",
-            description: "Verifique seu email para confirmar a conta.",
+            description: "Bem-vindo ao sistema.",
           });
+          // Aguardar um pouco para o perfil ser criado
+          setTimeout(() => {
+            if (email === 'yuriadrskt@gmail.com') {
+              navigate('/master');
+            } else {
+              navigate('/admin');
+            }
+          }, 1000);
         }
       } else {
         result = await signIn(email, password);
@@ -48,18 +60,36 @@ const LoginForm = () => {
             title: "Login realizado!",
             description: "Bem-vindo ao sistema.",
           });
-          navigate('/admin');
+          // Aguardar um pouco para o perfil ser carregado
+          setTimeout(() => {
+            if (email === 'yuriadrskt@gmail.com') {
+              navigate('/master');
+            } else {
+              navigate('/admin');
+            }
+          }, 1000);
         }
       }
 
       if (result.error) {
+        let errorMessage = 'Ocorreu um erro inesperado.';
+        
+        if (result.error.message.includes('Invalid login credentials')) {
+          errorMessage = 'Email ou senha incorretos.';
+        } else if (result.error.message.includes('User already registered')) {
+          errorMessage = 'Este email já está cadastrado. Faça login.';
+        } else if (result.error.message.includes('Password should be at least')) {
+          errorMessage = 'A senha deve ter pelo menos 6 caracteres.';
+        }
+
         toast({
           title: "Erro",
-          description: result.error.message,
+          description: errorMessage,
           variant: "destructive",
         });
       }
     } catch (error: any) {
+      console.error('Auth error:', error);
       toast({
         title: "Erro",
         description: error.message || "Ocorreu um erro inesperado.",
@@ -81,7 +111,9 @@ const LoginForm = () => {
           variant: "destructive",
         });
       }
+      // O redirecionamento será feito pelo useEffect quando o user/profile mudarem
     } catch (error: any) {
+      console.error('Google auth error:', error);
       toast({
         title: "Erro",
         description: error.message || "Erro ao fazer login com Google.",

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -43,12 +42,56 @@ export const useAuth = () => {
         .eq('id', userId)
         .single();
 
-      if (error) throw error;
-      setProfile(data);
+      if (error) {
+        console.error('Error fetching profile:', error);
+        // Se não encontrar o perfil, criar um básico
+        await createProfile(userId);
+      } else {
+        setProfile(data);
+      }
     } catch (error) {
       console.error('Error fetching profile:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const createProfile = async (userId: string) => {
+    try {
+      const { data: authUser } = await supabase.auth.getUser();
+      if (!authUser.user) return;
+
+      const profileData = {
+        id: userId,
+        email: authUser.user.email || '',
+        name: authUser.user.user_metadata?.full_name || 
+              authUser.user.user_metadata?.name || 
+              authUser.user.email?.split('@')[0] || 'Usuário',
+        avatar: authUser.user.user_metadata?.avatar_url || 
+               authUser.user.user_metadata?.picture || null,
+      };
+
+      const { data, error } = await supabase
+        .from('profiles')
+        .insert([profileData])
+        .select()
+        .single();
+
+      if (!error && data) {
+        setProfile(data);
+        
+        // Criar role padrão
+        const role = authUser.user.email === 'yuriadrskt@gmail.com' ? 'master' : 'member';
+        await supabase
+          .from('user_roles')
+          .insert([{
+            user_id: userId,
+            church_id: null,
+            role: role
+          }]);
+      }
+    } catch (error) {
+      console.error('Error creating profile:', error);
     }
   };
 
@@ -67,6 +110,7 @@ export const useAuth = () => {
       options: {
         data: {
           name,
+          full_name: name,
         },
         emailRedirectTo: `${window.location.origin}/`,
       },
@@ -78,7 +122,7 @@ export const useAuth = () => {
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${window.location.origin}/`,
+        redirectTo: `${window.location.origin}/admin`,
       },
     });
     return { data, error };
@@ -86,6 +130,10 @@ export const useAuth = () => {
 
   const signOut = async () => {
     const { error } = await supabase.auth.signOut();
+    if (!error) {
+      setUser(null);
+      setProfile(null);
+    }
     return { error };
   };
 
@@ -100,20 +148,45 @@ export const useAuth = () => {
   };
 };
 
+// Hook para verificar se o usuário tem uma church_id válida
+const getCurrentChurchId = async () => {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return null;
+
+  // Para master users, retornar null
+  const { data: roles } = await supabase
+    .from('user_roles')
+    .select('role, church_id')
+    .eq('user_id', user.id);
+
+  const masterRole = roles?.find(r => r.role === 'master');
+  if (masterRole) return null;
+
+  // Para outros usuários, encontrar a primeira igreja válida
+  const churchRole = roles?.find(r => r.church_id);
+  return churchRole?.church_id || '1'; // Fallback para '1' por enquanto
+};
+
 // Hook para membros
-export const useMembers = (churchId: string) => {
+export const useMembers = (churchId?: string) => {
   const queryClient = useQueryClient();
 
   const { data: members = [], isLoading } = useQuery({
     queryKey: ['members', churchId],
     queryFn: async () => {
+      const actualChurchId = churchId || await getCurrentChurchId();
+      if (!actualChurchId) return [];
+
       const { data, error } = await supabase
         .from('members')
         .select('*')
-        .eq('church_id', churchId)
+        .eq('church_id', actualChurchId)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching members:', error);
+        return [];
+      }
       return data as Member[];
     },
     enabled: !!churchId,
@@ -131,7 +204,7 @@ export const useMembers = (churchId: string) => {
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['members', churchId] });
+      queryClient.invalidateQueries({ queryKey: ['members'] });
     },
   });
 
@@ -148,7 +221,7 @@ export const useMembers = (churchId: string) => {
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['members', churchId] });
+      queryClient.invalidateQueries({ queryKey: ['members'] });
     },
   });
 
@@ -162,7 +235,7 @@ export const useMembers = (churchId: string) => {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['members', churchId] });
+      queryClient.invalidateQueries({ queryKey: ['members'] });
     },
   });
 
@@ -182,29 +255,48 @@ export const useChurches = () => {
   const { data: churches = [], isLoading } = useQuery({
     queryKey: ['churches'],
     queryFn: async () => {
-      const { data, error } = await supabase
+      // Primeiro tentar a view com estatísticas
+      const { data: statsData, error: statsError } = await supabase
         .from('church_finance_stats')
         .select('*')
         .order('church_name');
 
-      if (error) throw error;
-      return data.map(church => ({
-        id: church.church_id!,
-        name: church.church_name!,
-        members_count: church.members_count || 0,
-        total_finance: church.balance || 0,
-        // Campos adicionais serão preenchidos conforme necessário
-        created_at: '',
-        admin_id: '',
-        email: '',
-        phone: '',
-        address: '',
-        service_types: [],
-        updated_at: '',
+      if (!statsError && statsData) {
+        return statsData.map(church => ({
+          id: church.church_id!,
+          name: church.church_name!,
+          members_count: church.members_count || 0,
+          total_finance: church.balance || 0,
+          created_at: '',
+          admin_id: '',
+          email: '',
+          phone: '',
+          address: '',
+          service_types: [],
+          updated_at: '',
+        })) as Church[];
+      }
+
+      // Fallback para tabela churches diretamente
+      const { data, error } = await supabase
+        .from('churches')
+        .select('*')
+        .order('name');
+
+      if (error) {
+        console.error('Error fetching churches:', error);
+        return [];
+      }
+
+      return (data || []).map(church => ({
+        ...church,
+        members_count: 0,
+        total_finance: 0,
       })) as Church[];
     },
   });
 
+  // ... keep existing code (addChurch, updateChurch, deleteChurch methods)
   const addChurch = useMutation({
     mutationFn: async (church: Omit<Church, 'id' | 'created_at' | 'updated_at'>) => {
       const { data, error } = await supabase
@@ -273,24 +365,47 @@ export const useChurches = () => {
 };
 
 // Hook para grupos
-export const useGroups = (churchId: string) => {
+export const useGroups = (churchId?: string) => {
   const queryClient = useQueryClient();
 
   const { data: groups = [], isLoading } = useQuery({
     queryKey: ['groups', churchId],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const actualChurchId = churchId || await getCurrentChurchId();
+      if (!actualChurchId) return [];
+
+      // Primeiro tentar a view com contagem de membros
+      const { data: groupData, error: groupError } = await supabase
         .from('group_member_counts')
         .select('*')
-        .eq('church_id', churchId)
+        .eq('church_id', actualChurchId)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
-      return data as Group[];
+      if (!groupError && groupData) {
+        return groupData as Group[];
+      }
+
+      // Fallback para tabela groups diretamente
+      const { data, error } = await supabase
+        .from('groups')
+        .select('*')
+        .eq('church_id', actualChurchId)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching groups:', error);
+        return [];
+      }
+
+      return (data || []).map(group => ({
+        ...group,
+        members_count: 0,
+      })) as Group[];
     },
     enabled: !!churchId,
   });
 
+  // ... keep existing code (addGroup, updateGroup, deleteGroup methods)
   const addGroup = useMutation({
     mutationFn: async (group: Omit<Group, 'id' | 'created_at' | 'updated_at' | 'members_count'>) => {
       const { data, error } = await supabase
@@ -303,7 +418,7 @@ export const useGroups = (churchId: string) => {
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['groups', churchId] });
+      queryClient.invalidateQueries({ queryKey: ['groups'] });
     },
   });
 
@@ -320,7 +435,7 @@ export const useGroups = (churchId: string) => {
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['groups', churchId] });
+      queryClient.invalidateQueries({ queryKey: ['groups'] });
     },
   });
 
@@ -334,7 +449,7 @@ export const useGroups = (churchId: string) => {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['groups', churchId] });
+      queryClient.invalidateQueries({ queryKey: ['groups'] });
     },
   });
 
@@ -348,24 +463,31 @@ export const useGroups = (churchId: string) => {
 };
 
 // Hook para finanças
-export const useFinances = (churchId: string) => {
+export const useFinances = (churchId?: string) => {
   const queryClient = useQueryClient();
 
   const { data: finances = [], isLoading } = useQuery({
     queryKey: ['finances', churchId],
     queryFn: async () => {
+      const actualChurchId = churchId || await getCurrentChurchId();
+      if (!actualChurchId) return [];
+
       const { data, error } = await supabase
         .from('finances')
         .select('*')
-        .eq('church_id', churchId)
+        .eq('church_id', actualChurchId)
         .order('date', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching finances:', error);
+        return [];
+      }
       return data as Finance[];
     },
     enabled: !!churchId,
   });
 
+  // ... keep existing code (addFinance, updateFinance, deleteFinance methods)
   const addFinance = useMutation({
     mutationFn: async (finance: Omit<Finance, 'id' | 'created_at' | 'updated_at'>) => {
       const { data, error } = await supabase
@@ -378,7 +500,7 @@ export const useFinances = (churchId: string) => {
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['finances', churchId] });
+      queryClient.invalidateQueries({ queryKey: ['finances'] });
     },
   });
 
@@ -395,7 +517,7 @@ export const useFinances = (churchId: string) => {
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['finances', churchId] });
+      queryClient.invalidateQueries({ queryKey: ['finances'] });
     },
   });
 
@@ -409,7 +531,7 @@ export const useFinances = (churchId: string) => {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['finances', churchId] });
+      queryClient.invalidateQueries({ queryKey: ['finances'] });
     },
   });
 
@@ -423,24 +545,31 @@ export const useFinances = (churchId: string) => {
 };
 
 // Hook para eventos
-export const useEvents = (churchId: string) => {
+export const useEvents = (churchId?: string) => {
   const queryClient = useQueryClient();
 
   const { data: events = [], isLoading } = useQuery({
     queryKey: ['events', churchId],
     queryFn: async () => {
+      const actualChurchId = churchId || await getCurrentChurchId();
+      if (!actualChurchId) return [];
+
       const { data, error } = await supabase
         .from('events')
         .select('*')
-        .eq('church_id', churchId)
+        .eq('church_id', actualChurchId)
         .order('date', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching events:', error);
+        return [];
+      }
       return data as Event[];
     },
     enabled: !!churchId,
   });
 
+  // ... keep existing code (addEvent, updateEvent, deleteEvent methods)
   const addEvent = useMutation({
     mutationFn: async (event: Omit<Event, 'id' | 'created_at' | 'updated_at'>) => {
       const { data, error } = await supabase
@@ -453,7 +582,7 @@ export const useEvents = (churchId: string) => {
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['events', churchId] });
+      queryClient.invalidateQueries({ queryKey: ['events'] });
     },
   });
 
@@ -470,7 +599,7 @@ export const useEvents = (churchId: string) => {
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['events', churchId] });
+      queryClient.invalidateQueries({ queryKey: ['events'] });
     },
   });
 
@@ -484,7 +613,7 @@ export const useEvents = (churchId: string) => {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['events', churchId] });
+      queryClient.invalidateQueries({ queryKey: ['events'] });
     },
   });
 
