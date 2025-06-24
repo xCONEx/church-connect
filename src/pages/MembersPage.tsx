@@ -9,38 +9,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import MemberForm from '@/components/MemberForm';
+import { useMembers } from '@/hooks/useSupabaseData';
 import { Member } from '@/types';
 
 const MembersPage = () => {
-  const [members, setMembers] = useState<Member[]>([
-    {
-      id: '1',
-      church_id: '1',
-      name: 'João Silva',
-      cpf: '12345678901',
-      email: 'joao@email.com',
-      phone: '(11) 99999-9999',
-      birth_date: '1980-05-15',
-      address: 'Rua das Flores, 123 - São Paulo/SP',
-      status: 'ativo',
-      joined_at: '2022-01-15',
-      created_at: '2022-01-15T10:00:00Z',
-    },
-    {
-      id: '2',
-      church_id: '1',
-      name: 'Maria Santos',
-      cpf: '98765432101',
-      email: 'maria@email.com',
-      phone: '(11) 88888-8888',
-      birth_date: '1975-10-22',
-      address: 'Av. Principal, 456 - São Paulo/SP',
-      status: 'ativo',
-      joined_at: '2021-06-10',
-      created_at: '2021-06-10T10:00:00Z',
-    },
-  ]);
-
+  const { members, loading, addMember, updateMember, deleteMember } = useMembers('1'); // Usando church_id fixo por enquanto
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('todos');
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -54,20 +27,21 @@ const MembersPage = () => {
     return matchesSearch && matchesStatus;
   });
 
-  const handleSubmit = (data: any) => {
-    if (selectedMember) {
-      setMembers(prev => prev.map(m => m.id === selectedMember.id ? { ...m, ...data } : m));
-    } else {
-      const newMember: Member = {
-        id: Date.now().toString(),
-        church_id: '1',
-        ...data,
-        created_at: new Date().toISOString(),
-      };
-      setMembers(prev => [...prev, newMember]);
+  const handleSubmit = async (data: any) => {
+    try {
+      if (selectedMember) {
+        await updateMember({
+          id: selectedMember.id,
+          updates: data
+        });
+      } else {
+        await addMember(data);
+      }
+      setIsFormOpen(false);
+      setSelectedMember(undefined);
+    } catch (error) {
+      console.error('Erro ao salvar membro:', error);
     }
-    setIsFormOpen(false);
-    setSelectedMember(undefined);
   };
 
   const handleEdit = (member: Member) => {
@@ -80,9 +54,13 @@ const MembersPage = () => {
     setIsViewModalOpen(true);
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (confirm('Tem certeza que deseja excluir este membro?')) {
-      setMembers(prev => prev.filter(m => m.id !== id));
+      try {
+        await deleteMember(id);
+      } catch (error) {
+        console.error('Erro ao excluir membro:', error);
+      }
     }
   };
 
@@ -95,6 +73,16 @@ const MembersPage = () => {
     };
     return colors[status as keyof typeof colors] || colors.ativo;
   };
+
+  if (loading) {
+    return (
+      <Layout userRole="church_admin" churchName="Igreja Exemplo">
+        <div className="flex items-center justify-center h-64">
+          <div className="text-lg">Carregando...</div>
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout userRole="church_admin" churchName="Igreja Exemplo">
@@ -116,6 +104,7 @@ const MembersPage = () => {
               </DialogHeader>
               <MemberForm
                 member={selectedMember}
+                churchId="1"
                 onSubmit={handleSubmit}
                 onCancel={() => {
                   setIsFormOpen(false);

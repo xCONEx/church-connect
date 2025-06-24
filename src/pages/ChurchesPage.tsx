@@ -8,39 +8,17 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { useChurches } from '@/hooks/useSupabaseData';
+import { useAuthContext } from '@/components/AuthProvider';
 import { Church as ChurchType } from '@/types';
 
 const ChurchesPage = () => {
-  const [churches, setChurches] = useState<ChurchType[]>([
-    {
-      id: '1',
-      name: 'Igreja Batista Central',
-      cnpj: '12.345.678/0001-90',
-      email: 'contato@igrejabatistacentral.com',
-      phone: '(11) 3333-4444',
-      address: 'Rua Principal, 100 - São Paulo/SP',
-      created_at: '2023-01-15T10:00:00Z',
-      members_count: 150,
-      total_finance: 25000,
-    },
-    {
-      id: '2',
-      name: 'Igreja Presbiteriana Renovada',
-      cnpj: '98.765.432/0001-12',
-      email: 'contato@iprenovada.com',
-      phone: '(11) 5555-6666',
-      address: 'Av. da Paz, 500 - São Paulo/SP',
-      created_at: '2023-03-20T10:00:00Z',
-      members_count: 89,
-      total_finance: 18000,
-    },
-  ]);
-
+  const { churches, loading, addChurch, updateChurch } = useChurches();
+  const { user } = useAuthContext();
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [selectedChurch, setSelectedChurch] = useState<ChurchType | undefined>();
   const [formData, setFormData] = useState({
     name: '',
-    cnpj: '',
     email: '',
     phone: '',
     address: '',
@@ -50,28 +28,31 @@ const ChurchesPage = () => {
   const totalMembers = churches.reduce((sum, church) => sum + (church.members_count || 0), 0);
   const totalFinance = churches.reduce((sum, church) => sum + (church.total_finance || 0), 0);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (selectedChurch) {
-      setChurches(prev => prev.map(c => c.id === selectedChurch.id ? { ...c, ...formData } : c));
-    } else {
-      const newChurch: ChurchType = {
-        id: Date.now().toString(),
-        ...formData,
-        created_at: new Date().toISOString(),
-        members_count: 0,
-        total_finance: 0,
-      };
-      setChurches(prev => [...prev, newChurch]);
+    try {
+      if (selectedChurch) {
+        await updateChurch({
+          id: selectedChurch.id,
+          updates: formData
+        });
+      } else {
+        await addChurch({
+          ...formData,
+          admin_id: user?.id || '',
+          service_types: ['Culto Domingo Manhã', 'Culto Domingo Noite', 'Reunião de Oração']
+        });
+      }
+      setIsFormOpen(false);
+      resetForm();
+    } catch (error) {
+      console.error('Erro ao salvar igreja:', error);
     }
-    setIsFormOpen(false);
-    resetForm();
   };
 
   const resetForm = () => {
     setFormData({
       name: '',
-      cnpj: '',
       email: '',
       phone: '',
       address: '',
@@ -83,7 +64,6 @@ const ChurchesPage = () => {
     setSelectedChurch(church);
     setFormData({
       name: church.name,
-      cnpj: church.cnpj || '',
       email: church.email,
       phone: church.phone,
       address: church.address,
@@ -97,6 +77,16 @@ const ChurchesPage = () => {
       currency: 'BRL'
     }).format(value);
   };
+
+  if (loading) {
+    return (
+      <Layout userRole="master">
+        <div className="flex items-center justify-center h-64">
+          <div className="text-lg">Carregando...</div>
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout userRole="master">
@@ -131,26 +121,15 @@ const ChurchesPage = () => {
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="cnpj">CNPJ</Label>
-                    <Input
-                      id="cnpj"
-                      value={formData.cnpj}
-                      onChange={(e) => setFormData({...formData, cnpj: e.target.value})}
-                      placeholder="00.000.000/0000-00"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="phone">Telefone</Label>
-                    <Input
-                      id="phone"
-                      value={formData.phone}
-                      onChange={(e) => setFormData({...formData, phone: e.target.value})}
-                      placeholder="(00) 0000-0000"
-                      required
-                    />
-                  </div>
+                <div>
+                  <Label htmlFor="phone">Telefone</Label>
+                  <Input
+                    id="phone"
+                    value={formData.phone}
+                    onChange={(e) => setFormData({...formData, phone: e.target.value})}
+                    placeholder="(00) 0000-0000"
+                    required
+                  />
                 </div>
 
                 <div>

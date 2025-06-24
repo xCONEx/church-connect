@@ -6,63 +6,63 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Event } from '@/types';
+import { useEvents } from '@/hooks/useSupabaseData';
+import { useAuthContext } from '@/components/AuthProvider';
 
 const EventsPage = () => {
-  const [events, setEvents] = useState<Event[]>([
-    {
-      id: '1',
-      church_id: '1',
-      name: 'Culto Dominical',
-      description: 'Culto principal da igreja',
-      date: '2024-01-21',
-      time: '10:00',
-      location: 'Templo Principal',
-      created_at: '2024-01-15T10:00:00Z',
-    },
-    {
-      id: '2',
-      church_id: '1',
-      name: 'Reunião de Oração',
-      description: 'Encontro semanal de oração',
-      date: '2024-01-17',
-      time: '19:30',
-      location: 'Sala de Oração',
-      created_at: '2024-01-10T10:00:00Z',
-    },
-  ]);
-
+  const { events, loading, addEvent } = useEvents('1'); // Usando church_id fixo por enquanto
+  const { user } = useAuthContext();
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [formData, setFormData] = useState({
-    name: '',
+    title: '',
     description: '',
-    date: new Date().toISOString().split('T')[0],
-    time: '',
+    date: new Date().toISOString().split('T')[0] + 'T10:00',
     location: '',
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const newEvent: Event = {
-      id: Date.now().toString(),
-      church_id: '1',
-      ...formData,
-      created_at: new Date().toISOString(),
-    };
-    setEvents(prev => [...prev, newEvent]);
-    setIsFormOpen(false);
-    setFormData({
-      name: '',
-      description: '',
-      date: new Date().toISOString().split('T')[0],
-      time: '',
-      location: '',
-    });
+    try {
+      await addEvent({
+        title: formData.title,
+        description: formData.description,
+        date: formData.date,
+        location: formData.location,
+        church_id: '1',
+        created_by: user?.id || '',
+        is_public: true,
+        status: 'published' as any,
+        max_attendees: null,
+        registration_deadline: null,
+        image: null,
+        tags: [],
+        qr_readers: []
+      });
+      setIsFormOpen(false);
+      setFormData({
+        title: '',
+        description: '',
+        date: new Date().toISOString().split('T')[0] + 'T10:00',
+        location: '',
+      });
+    } catch (error) {
+      console.error('Erro ao criar evento:', error);
+    }
   };
 
   const sortedEvents = events.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
   const upcomingEvents = sortedEvents.filter(event => new Date(event.date) >= new Date());
   const pastEvents = sortedEvents.filter(event => new Date(event.date) < new Date());
+
+  if (loading) {
+    return (
+      <Layout userRole="church_admin" churchName="Igreja Exemplo">
+        <div className="flex items-center justify-center h-64">
+          <div className="text-lg">Carregando...</div>
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout userRole="church_admin" churchName="Igreja Exemplo">
@@ -82,11 +82,11 @@ const EventsPage = () => {
               </DialogHeader>
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
-                  <Label htmlFor="name">Nome do Evento</Label>
+                  <Label htmlFor="title">Nome do Evento</Label>
                   <Input
-                    id="name"
-                    value={formData.name}
-                    onChange={(e) => setFormData({...formData, name: e.target.value})}
+                    id="title"
+                    value={formData.title}
+                    onChange={(e) => setFormData({...formData, title: e.target.value})}
                     placeholder="Nome do evento"
                     required
                   />
@@ -103,27 +103,15 @@ const EventsPage = () => {
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="date">Data</Label>
-                    <Input
-                      id="date"
-                      type="date"
-                      value={formData.date}
-                      onChange={(e) => setFormData({...formData, date: e.target.value})}
-                      required
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="time">Horário</Label>
-                    <Input
-                      id="time"
-                      type="time"
-                      value={formData.time}
-                      onChange={(e) => setFormData({...formData, time: e.target.value})}
-                      required
-                    />
-                  </div>
+                <div>
+                  <Label htmlFor="date">Data e Horário</Label>
+                  <Input
+                    id="date"
+                    type="datetime-local"
+                    value={formData.date}
+                    onChange={(e) => setFormData({...formData, date: e.target.value})}
+                    required
+                  />
                 </div>
 
                 <div>
@@ -162,7 +150,7 @@ const EventsPage = () => {
                   <div key={event.id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
                     <div className="flex justify-between items-start">
                       <div className="flex-1">
-                        <h3 className="text-lg font-semibold text-gray-900 mb-2">{event.name}</h3>
+                        <h3 className="text-lg font-semibold text-gray-900 mb-2">{event.title}</h3>
                         <p className="text-gray-600 mb-3">{event.description}</p>
                         
                         <div className="flex flex-wrap gap-4 text-sm text-gray-500">
@@ -172,7 +160,7 @@ const EventsPage = () => {
                           </div>
                           <div className="flex items-center">
                             <Clock className="w-4 h-4 mr-1" />
-                            {event.time}
+                            {new Date(event.date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
                           </div>
                           <div className="flex items-center">
                             <MapPin className="w-4 h-4 mr-1" />
@@ -209,7 +197,7 @@ const EventsPage = () => {
                   <div key={event.id} className="border border-gray-200 rounded-lg p-4 opacity-75">
                     <div className="flex justify-between items-start">
                       <div className="flex-1">
-                        <h3 className="text-lg font-semibold text-gray-700 mb-2">{event.name}</h3>
+                        <h3 className="text-lg font-semibold text-gray-700 mb-2">{event.title}</h3>
                         <p className="text-gray-500 mb-3">{event.description}</p>
                         
                         <div className="flex flex-wrap gap-4 text-sm text-gray-400">
@@ -219,7 +207,7 @@ const EventsPage = () => {
                           </div>
                           <div className="flex items-center">
                             <Clock className="w-4 h-4 mr-1" />
-                            {event.time}
+                            {new Date(event.date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
                           </div>
                           <div className="flex items-center">
                             <MapPin className="w-4 h-4 mr-1" />

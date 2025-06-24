@@ -9,42 +9,10 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Finance } from '@/types';
+import { useFinances } from '@/hooks/useSupabaseData';
 
 const FinancesPage = () => {
-  const [finances, setFinances] = useState<Finance[]>([
-    {
-      id: '1',
-      church_id: '1',
-      type: 'entrada',
-      category: 'Dízimo',
-      description: 'Dízimos do mês de Janeiro',
-      amount: 5000,
-      date: '2024-01-15',
-      created_at: '2024-01-15T10:00:00Z',
-    },
-    {
-      id: '2',
-      church_id: '1',
-      type: 'entrada',
-      category: 'Oferta',
-      description: 'Ofertas do culto dominical',
-      amount: 1200,
-      date: '2024-01-14',
-      created_at: '2024-01-14T10:00:00Z',
-    },
-    {
-      id: '3',
-      church_id: '1',
-      type: 'saida',
-      category: 'Despesa',
-      description: 'Conta de luz',
-      amount: 450,
-      date: '2024-01-10',
-      created_at: '2024-01-10T10:00:00Z',
-    },
-  ]);
-
+  const { finances, loading, addFinance } = useFinances('1'); // Usando church_id fixo por enquanto
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [formData, setFormData] = useState({
     type: 'entrada' as 'entrada' | 'saida',
@@ -58,27 +26,28 @@ const FinancesPage = () => {
   const totalSaidas = finances.filter(f => f.type === 'saida').reduce((sum, f) => sum + f.amount, 0);
   const saldo = totalEntradas - totalSaidas;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const newFinance: Finance = {
-      id: Date.now().toString(),
-      church_id: '1',
-      type: formData.type,
-      category: formData.category,
-      description: formData.description,
-      amount: parseFloat(formData.amount),
-      date: formData.date,
-      created_at: new Date().toISOString(),
-    };
-    setFinances(prev => [...prev, newFinance]);
-    setIsFormOpen(false);
-    setFormData({
-      type: 'entrada',
-      category: '',
-      description: '',
-      amount: '',
-      date: new Date().toISOString().split('T')[0],
-    });
+    try {
+      await addFinance({
+        type: formData.type,
+        category: formData.category,
+        description: formData.description,
+        amount: parseFloat(formData.amount),
+        date: formData.date,
+        church_id: '1',
+      });
+      setIsFormOpen(false);
+      setFormData({
+        type: 'entrada',
+        category: '',
+        description: '',
+        amount: '',
+        date: new Date().toISOString().split('T')[0],
+      });
+    } catch (error) {
+      console.error('Erro ao salvar transação:', error);
+    }
   };
 
   const formatCurrency = (value: number) => {
@@ -87,6 +56,16 @@ const FinancesPage = () => {
       currency: 'BRL'
     }).format(value);
   };
+
+  if (loading) {
+    return (
+      <Layout userRole="church_admin" churchName="Igreja Exemplo">
+        <div className="flex items-center justify-center h-64">
+          <div className="text-lg">Carregando...</div>
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout userRole="church_admin" churchName="Igreja Exemplo">

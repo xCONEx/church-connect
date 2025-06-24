@@ -7,60 +7,44 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Group } from '@/types';
+import { useGroups } from '@/hooks/useSupabaseData';
 
 const GroupsPage = () => {
-  const [groups, setGroups] = useState<Group[]>([
-    {
-      id: '1',
-      church_id: '1',
-      name: 'Ministério de Louvor',
-      description: 'Grupo responsável pelo louvor nos cultos',
-      members_count: 12,
-      created_at: '2024-01-01T10:00:00Z',
-    },
-    {
-      id: '2',
-      church_id: '1',
-      name: 'Jovens',
-      description: 'Grupo dos jovens da igreja',
-      members_count: 25,
-      created_at: '2024-01-01T10:00:00Z',
-    },
-    {
-      id: '3',
-      church_id: '1',
-      name: 'Mulheres em Oração',
-      description: 'Ministério das mulheres',
-      members_count: 18,
-      created_at: '2024-01-01T10:00:00Z',
-    },
-  ]);
-
+  const { groups, loading, addGroup } = useGroups('1'); // Usando church_id fixo por enquanto
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     description: '',
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const newGroup: Group = {
-      id: Date.now().toString(),
-      church_id: '1',
-      ...formData,
-      members_count: 0,
-      created_at: new Date().toISOString(),
-    };
-    setGroups(prev => [...prev, newGroup]);
-    setIsFormOpen(false);
-    setFormData({
-      name: '',
-      description: '',
-    });
+    try {
+      await addGroup({
+        ...formData,
+        church_id: '1',
+      });
+      setIsFormOpen(false);
+      setFormData({
+        name: '',
+        description: '',
+      });
+    } catch (error) {
+      console.error('Erro ao criar grupo:', error);
+    }
   };
 
   const totalMembers = groups.reduce((sum, group) => sum + (group.members_count || 0), 0);
+
+  if (loading) {
+    return (
+      <Layout userRole="church_admin" churchName="Igreja Exemplo">
+        <div className="flex items-center justify-center h-64">
+          <div className="text-lg">Carregando...</div>
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout userRole="church_admin" churchName="Igreja Exemplo">
