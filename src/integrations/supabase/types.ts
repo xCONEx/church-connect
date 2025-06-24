@@ -163,6 +163,13 @@ export type Database = {
             foreignKeyName: "courses_church_id_fkey"
             columns: ["church_id"]
             isOneToOne: false
+            referencedRelation: "church_finance_stats"
+            referencedColumns: ["church_id"]
+          },
+          {
+            foreignKeyName: "courses_church_id_fkey"
+            columns: ["church_id"]
+            isOneToOne: false
             referencedRelation: "churches"
             referencedColumns: ["id"]
           },
@@ -207,6 +214,13 @@ export type Database = {
           type?: Database["public"]["Enums"]["department_type"]
         }
         Relationships: [
+          {
+            foreignKeyName: "departments_church_id_fkey"
+            columns: ["church_id"]
+            isOneToOne: false
+            referencedRelation: "church_finance_stats"
+            referencedColumns: ["church_id"]
+          },
           {
             foreignKeyName: "departments_church_id_fkey"
             columns: ["church_id"]
@@ -354,6 +368,106 @@ export type Database = {
             foreignKeyName: "events_church_id_fkey"
             columns: ["church_id"]
             isOneToOne: false
+            referencedRelation: "church_finance_stats"
+            referencedColumns: ["church_id"]
+          },
+          {
+            foreignKeyName: "events_church_id_fkey"
+            columns: ["church_id"]
+            isOneToOne: false
+            referencedRelation: "churches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      finances: {
+        Row: {
+          amount: number
+          category: string
+          church_id: string
+          created_at: string
+          date: string
+          description: string
+          id: string
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          category: string
+          church_id: string
+          created_at?: string
+          date: string
+          description: string
+          id?: string
+          type: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          category?: string
+          church_id?: string
+          created_at?: string
+          date?: string
+          description?: string
+          id?: string
+          type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "finances_church_id_fkey"
+            columns: ["church_id"]
+            isOneToOne: false
+            referencedRelation: "church_finance_stats"
+            referencedColumns: ["church_id"]
+          },
+          {
+            foreignKeyName: "finances_church_id_fkey"
+            columns: ["church_id"]
+            isOneToOne: false
+            referencedRelation: "churches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      groups: {
+        Row: {
+          church_id: string
+          created_at: string
+          description: string
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          church_id: string
+          created_at?: string
+          description: string
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          church_id?: string
+          created_at?: string
+          description?: string
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "groups_church_id_fkey"
+            columns: ["church_id"]
+            isOneToOne: false
+            referencedRelation: "church_finance_stats"
+            referencedColumns: ["church_id"]
+          },
+          {
+            foreignKeyName: "groups_church_id_fkey"
+            columns: ["church_id"]
+            isOneToOne: false
             referencedRelation: "churches"
             referencedColumns: ["id"]
           },
@@ -397,6 +511,13 @@ export type Database = {
           status?: Database["public"]["Enums"]["invite_status"] | null
         }
         Relationships: [
+          {
+            foreignKeyName: "invites_church_id_fkey"
+            columns: ["church_id"]
+            isOneToOne: false
+            referencedRelation: "church_finance_stats"
+            referencedColumns: ["church_id"]
+          },
           {
             foreignKeyName: "invites_church_id_fkey"
             columns: ["church_id"]
@@ -549,6 +670,13 @@ export type Database = {
             foreignKeyName: "member_evaluations_church_id_fkey"
             columns: ["church_id"]
             isOneToOne: false
+            referencedRelation: "church_finance_stats"
+            referencedColumns: ["church_id"]
+          },
+          {
+            foreignKeyName: "member_evaluations_church_id_fkey"
+            columns: ["church_id"]
+            isOneToOne: false
             referencedRelation: "churches"
             referencedColumns: ["id"]
           },
@@ -557,6 +685,109 @@ export type Database = {
             columns: ["department_id"]
             isOneToOne: false
             referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      member_groups: {
+        Row: {
+          group_id: string
+          id: string
+          joined_at: string
+          member_id: string
+        }
+        Insert: {
+          group_id: string
+          id?: string
+          joined_at?: string
+          member_id: string
+        }
+        Update: {
+          group_id?: string
+          id?: string
+          joined_at?: string
+          member_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "member_groups_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "group_member_counts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "member_groups_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "member_groups_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      members: {
+        Row: {
+          address: string
+          birth_date: string
+          church_id: string
+          cpf: string | null
+          created_at: string
+          email: string
+          id: string
+          joined_at: string
+          name: string
+          phone: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          address: string
+          birth_date: string
+          church_id: string
+          cpf?: string | null
+          created_at?: string
+          email: string
+          id?: string
+          joined_at?: string
+          name: string
+          phone: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          address?: string
+          birth_date?: string
+          church_id?: string
+          cpf?: string | null
+          created_at?: string
+          email?: string
+          id?: string
+          joined_at?: string
+          name?: string
+          phone?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "members_church_id_fkey"
+            columns: ["church_id"]
+            isOneToOne: false
+            referencedRelation: "church_finance_stats"
+            referencedColumns: ["church_id"]
+          },
+          {
+            foreignKeyName: "members_church_id_fkey"
+            columns: ["church_id"]
+            isOneToOne: false
+            referencedRelation: "churches"
             referencedColumns: ["id"]
           },
         ]
@@ -605,6 +836,13 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "profile_history_church_id_fkey"
+            columns: ["church_id"]
+            isOneToOne: false
+            referencedRelation: "church_finance_stats"
+            referencedColumns: ["church_id"]
+          },
           {
             foreignKeyName: "profile_history_church_id_fkey"
             columns: ["church_id"]
@@ -791,6 +1029,13 @@ export type Database = {
             foreignKeyName: "scales_church_id_fkey"
             columns: ["church_id"]
             isOneToOne: false
+            referencedRelation: "church_finance_stats"
+            referencedColumns: ["church_id"]
+          },
+          {
+            foreignKeyName: "scales_church_id_fkey"
+            columns: ["church_id"]
+            isOneToOne: false
             referencedRelation: "churches"
             referencedColumns: ["id"]
           },
@@ -856,6 +1101,13 @@ export type Database = {
           youtube_url?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "songs_church_id_fkey"
+            columns: ["church_id"]
+            isOneToOne: false
+            referencedRelation: "church_finance_stats"
+            referencedColumns: ["church_id"]
+          },
           {
             foreignKeyName: "songs_church_id_fkey"
             columns: ["church_id"]
@@ -962,6 +1214,13 @@ export type Database = {
             foreignKeyName: "user_roles_church_id_fkey"
             columns: ["church_id"]
             isOneToOne: false
+            referencedRelation: "church_finance_stats"
+            referencedColumns: ["church_id"]
+          },
+          {
+            foreignKeyName: "user_roles_church_id_fkey"
+            columns: ["church_id"]
+            isOneToOne: false
             referencedRelation: "churches"
             referencedColumns: ["id"]
           },
@@ -976,7 +1235,44 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      church_finance_stats: {
+        Row: {
+          balance: number | null
+          church_id: string | null
+          church_name: string | null
+          members_count: number | null
+          total_expenses: number | null
+          total_income: number | null
+        }
+        Relationships: []
+      }
+      group_member_counts: {
+        Row: {
+          church_id: string | null
+          created_at: string | null
+          description: string | null
+          id: string | null
+          members_count: number | null
+          name: string | null
+          updated_at: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "groups_church_id_fkey"
+            columns: ["church_id"]
+            isOneToOne: false
+            referencedRelation: "church_finance_stats"
+            referencedColumns: ["church_id"]
+          },
+          {
+            foreignKeyName: "groups_church_id_fkey"
+            columns: ["church_id"]
+            isOneToOne: false
+            referencedRelation: "churches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       fix_orphaned_users: {

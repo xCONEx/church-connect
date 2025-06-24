@@ -12,7 +12,7 @@ import { useToast } from '@/hooks/useToast';
 
 const memberSchema = z.object({
   name: z.string().min(2, 'Nome deve ter pelo menos 2 caracteres'),
-  cpf: z.string().min(11, 'CPF deve ter 11 dígitos'),
+  cpf: z.string().optional(),
   email: z.string().email('Email inválido'),
   phone: z.string().min(10, 'Telefone deve ter pelo menos 10 dígitos'),
   birth_date: z.string().min(1, 'Data de nascimento é obrigatória'),
@@ -25,11 +25,12 @@ type MemberFormData = z.infer<typeof memberSchema>;
 
 interface MemberFormProps {
   member?: Member;
-  onSubmit: (data: MemberFormData) => void;
+  churchId: string;
+  onSubmit: (data: MemberFormData & { church_id: string }) => void;
   onCancel: () => void;
 }
 
-const MemberForm = ({ member, onSubmit, onCancel }: MemberFormProps) => {
+const MemberForm = ({ member, churchId, onSubmit, onCancel }: MemberFormProps) => {
   const { toast } = useToast();
   const {
     register,
@@ -41,12 +42,12 @@ const MemberForm = ({ member, onSubmit, onCancel }: MemberFormProps) => {
     resolver: zodResolver(memberSchema),
     defaultValues: member ? {
       name: member.name,
-      cpf: member.cpf,
+      cpf: member.cpf || '',
       email: member.email,
       phone: member.phone,
       birth_date: member.birth_date,
       address: member.address,
-      status: member.status,
+      status: member.status as any,
       joined_at: member.joined_at,
     } : {
       status: 'ativo',
@@ -56,7 +57,7 @@ const MemberForm = ({ member, onSubmit, onCancel }: MemberFormProps) => {
 
   const handleFormSubmit = async (data: MemberFormData) => {
     try {
-      await onSubmit(data);
+      await onSubmit({ ...data, church_id: churchId });
       toast({
         title: "Sucesso!",
         description: `Membro ${member ? 'atualizado' : 'cadastrado'} com sucesso.`,
