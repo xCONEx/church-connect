@@ -6,6 +6,8 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuthContext } from '@/components/AuthProvider';
 import { useToast } from '@/hooks/useToast';
+import { useNavigate } from 'react-router-dom';
+import { useEffect } from 'react';
 
 const LoginForm = () => {
   const [email, setEmail] = useState('');
@@ -14,8 +16,16 @@ const LoginForm = () => {
   const [isSignUp, setIsSignUp] = useState(false);
   const [loading, setLoading] = useState(false);
   
-  const { signIn, signUp } = useAuthContext();
+  const { signIn, signUp, signInWithGoogle, user } = useAuthContext();
   const { toast } = useToast();
+  const navigate = useNavigate();
+
+  // Redirecionar se já estiver logado
+  useEffect(() => {
+    if (user) {
+      navigate('/admin');
+    }
+  }, [user, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -25,8 +35,21 @@ const LoginForm = () => {
       let result;
       if (isSignUp) {
         result = await signUp(email, password, name);
+        if (result.data?.user && !result.error) {
+          toast({
+            title: "Cadastro realizado!",
+            description: "Verifique seu email para confirmar a conta.",
+          });
+        }
       } else {
         result = await signIn(email, password);
+        if (result.data?.user && !result.error) {
+          toast({
+            title: "Login realizado!",
+            description: "Bem-vindo ao sistema.",
+          });
+          navigate('/admin');
+        }
       }
 
       if (result.error) {
@@ -35,16 +58,33 @@ const LoginForm = () => {
           description: result.error.message,
           variant: "destructive",
         });
-      } else {
-        toast({
-          title: "Sucesso!",
-          description: isSignUp ? "Cadastro realizado com sucesso!" : "Login realizado com sucesso!",
-        });
       }
-    } catch (error) {
+    } catch (error: any) {
       toast({
         title: "Erro",
-        description: "Ocorreu um erro inesperado.",
+        description: error.message || "Ocorreu um erro inesperado.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    setLoading(true);
+    try {
+      const result = await signInWithGoogle();
+      if (result.error) {
+        toast({
+          title: "Erro",
+          description: result.error.message,
+          variant: "destructive",
+        });
+      }
+    } catch (error: any) {
+      toast({
+        title: "Erro",
+        description: error.message || "Erro ao fazer login com Google.",
         variant: "destructive",
       });
     } finally {
@@ -107,6 +147,27 @@ const LoginForm = () => {
             
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? 'Carregando...' : (isSignUp ? 'Cadastrar' : 'Entrar')}
+            </Button>
+            
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-background px-2 text-muted-foreground">
+                  Ou continue com
+                </span>
+              </div>
+            </div>
+            
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full"
+              onClick={handleGoogleSignIn}
+              disabled={loading}
+            >
+              {loading ? 'Carregando...' : 'Google'}
             </Button>
             
             <Button
