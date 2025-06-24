@@ -1,7 +1,8 @@
 
 import React from 'react';
-import { useLocation, Link } from 'react-router-dom';
+import { useLocation, Link, useNavigate } from 'react-router-dom';
 import { LogOut, Church, Users, Calendar, DollarSign, Settings } from 'lucide-react';
+import { useAuthContext } from '@/components/AuthProvider';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -11,6 +12,8 @@ interface LayoutProps {
 
 const Layout = ({ children, userRole, churchName }: LayoutProps) => {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { signOut } = useAuthContext();
 
   const masterMenuItems = [
     { path: '/master', icon: Church, label: 'Dashboard', exact: true },
@@ -33,6 +36,15 @@ const Layout = ({ children, userRole, churchName }: LayoutProps) => {
       return location.pathname === path;
     }
     return location.pathname.startsWith(path);
+  };
+
+  const handleLogout = async () => {
+    try {
+      await signOut();
+      navigate('/login');
+    } catch (error) {
+      console.error('Erro ao fazer logout:', error);
+    }
   };
 
   return (
@@ -69,13 +81,13 @@ const Layout = ({ children, userRole, churchName }: LayoutProps) => {
         </nav>
 
         <div className="absolute bottom-0 left-0 right-0 w-64 p-6 border-t border-gray-200">
-          <Link
-            to="/"
-            className="flex items-center px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900 rounded-lg transition-colors"
+          <button
+            onClick={handleLogout}
+            className="flex items-center px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900 rounded-lg transition-colors w-full"
           >
             <LogOut className="w-5 h-5 mr-3" />
             Sair
-          </Link>
+          </button>
         </div>
       </div>
 

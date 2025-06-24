@@ -1,6 +1,7 @@
 
 import React, { useState } from 'react';
 import { Plus, Church, Users, DollarSign, Edit, Eye } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import Layout from '@/components/Layout';
 import StatsCard from '@/components/StatsCard';
 import { Button } from '@/components/ui/button';
@@ -13,6 +14,7 @@ import { useAuthContext } from '@/components/AuthProvider';
 import { Church as ChurchType } from '@/types';
 
 const ChurchesPage = () => {
+  const navigate = useNavigate();
   const { churches, loading, addChurch, updateChurch } = useChurches();
   const { user } = useAuthContext();
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -69,6 +71,10 @@ const ChurchesPage = () => {
       address: church.address,
     });
     setIsFormOpen(true);
+  };
+
+  const handleViewDetails = (churchId: string) => {
+    navigate(`/master/churches/${churchId}`);
   };
 
   const formatCurrency = (value: number) => {
@@ -195,47 +201,59 @@ const ChurchesPage = () => {
           <div className="p-6 border-b border-gray-200">
             <h2 className="text-xl font-semibold text-gray-900">Lista de Igrejas</h2>
           </div>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Nome</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead>Telefone</TableHead>
-                <TableHead>Membros</TableHead>
-                <TableHead>Movimentação</TableHead>
-                <TableHead className="text-right">Ações</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {churches.map((church) => (
-                <TableRow key={church.id}>
-                  <TableCell className="font-medium">{church.name}</TableCell>
-                  <TableCell>{church.email}</TableCell>
-                  <TableCell>{church.phone}</TableCell>
-                  <TableCell>{church.members_count || 0}</TableCell>
-                  <TableCell>{formatCurrency(church.total_finance || 0)}</TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end space-x-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => console.log('Ver detalhes:', church.id)}
-                      >
-                        <Eye className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleEdit(church)}
-                      >
-                        <Edit className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
+          {churches.length === 0 ? (
+            <div className="p-12 text-center">
+              <Church className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">Nenhuma igreja cadastrada</h3>
+              <p className="text-gray-600 mb-4">Comece cadastrando sua primeira igreja.</p>
+              <Button onClick={() => setIsFormOpen(true)}>
+                <Plus className="w-4 h-4 mr-2" />
+                Cadastrar Igreja
+              </Button>
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Nome</TableHead>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Telefone</TableHead>
+                  <TableHead>Membros</TableHead>
+                  <TableHead>Movimentação</TableHead>
+                  <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {churches.map((church) => (
+                  <TableRow key={church.id}>
+                    <TableCell className="font-medium">{church.name}</TableCell>
+                    <TableCell>{church.email}</TableCell>
+                    <TableCell>{church.phone}</TableCell>
+                    <TableCell>{church.members_count || 0}</TableCell>
+                    <TableCell>{formatCurrency(church.total_finance || 0)}</TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end space-x-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleViewDetails(church.id)}
+                        >
+                          <Eye className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleEdit(church)}
+                        >
+                          <Edit className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
         </div>
       </div>
     </Layout>

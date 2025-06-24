@@ -15,6 +15,7 @@ import FinancesPage from "./pages/FinancesPage";
 import EventsPage from "./pages/EventsPage";
 import GroupsPage from "./pages/GroupsPage";
 import ChurchesPage from "./pages/ChurchesPage";
+import ChurchDetailsPage from "./pages/ChurchDetailsPage";
 import AnalyticsPage from "./pages/AnalyticsPage";
 import NotFound from "./pages/NotFound";
 
@@ -54,6 +55,11 @@ const App = () => (
             <Route path="/master/churches" element={
               <ProtectedRoute requireMaster>
                 <ChurchesPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/master/churches/:id" element={
+              <ProtectedRoute requireMaster>
+                <ChurchDetailsPage />
               </ProtectedRoute>
             } />
             <Route path="/master/analytics" element={

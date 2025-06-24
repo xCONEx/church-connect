@@ -38,36 +38,30 @@ const LoginForm = () => {
     try {
       let result;
       if (isSignUp) {
+        if (!name.trim()) {
+          toast({
+            title: "Erro",
+            description: "Nome é obrigatório para cadastro.",
+            variant: "destructive",
+          });
+          setLoading(false);
+          return;
+        }
+
         result = await signUp(email, password, name);
-        if (result.data?.user && !result.error) {
+        if (!result.error) {
           toast({
             title: "Cadastro realizado!",
-            description: "Bem-vindo ao sistema.",
+            description: "Verifique seu email para confirmar a conta.",
           });
-          // Aguardar um pouco para o perfil ser criado
-          setTimeout(() => {
-            if (email === 'yuriadrskt@gmail.com') {
-              navigate('/master');
-            } else {
-              navigate('/admin');
-            }
-          }, 1000);
         }
       } else {
         result = await signIn(email, password);
-        if (result.data?.user && !result.error) {
+        if (!result.error) {
           toast({
             title: "Login realizado!",
             description: "Bem-vindo ao sistema.",
           });
-          // Aguardar um pouco para o perfil ser carregado
-          setTimeout(() => {
-            if (email === 'yuriadrskt@gmail.com') {
-              navigate('/master');
-            } else {
-              navigate('/admin');
-            }
-          }, 1000);
         }
       }
 
@@ -80,6 +74,8 @@ const LoginForm = () => {
           errorMessage = 'Este email já está cadastrado. Faça login.';
         } else if (result.error.message.includes('Password should be at least')) {
           errorMessage = 'A senha deve ter pelo menos 6 caracteres.';
+        } else if (result.error.message.includes('Email not confirmed')) {
+          errorMessage = 'Confirme seu email antes de fazer login.';
         }
 
         toast({
@@ -111,7 +107,6 @@ const LoginForm = () => {
           variant: "destructive",
         });
       }
-      // O redirecionamento será feito pelo useEffect quando o user/profile mudarem
     } catch (error: any) {
       console.error('Google auth error:', error);
       toast({
